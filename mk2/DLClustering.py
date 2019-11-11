@@ -1,4 +1,5 @@
 import click
+import numpy as np
 import pandas as pd
 import tensorflow as tf
 
@@ -98,17 +99,25 @@ def _create_model_v4(input_shape):
     model = tf.keras.Model(inputs=input_layer, outputs=output_layer)
     # model.compile(optimizer=tf.keras.optimizers.SGD(0.001, 0.8), loss="kullback_leibler_divergence")
     # model.compile(optimizer=tf.keras.optimizers.SGD(0.001, 0.8), loss="kld")
-    # model.compile(optimizer=tf.keras.optimizers.Adam(0.001), loss="kullback_leibler_divergence")
-    model.compile(optimizer=tf.keras.optimizers.Adam(0.001), loss="mean_squared_logarithmic_error")
+    model.compile(optimizer=tf.keras.optimizers.Adam(0.001), loss="kullback_leibler_divergence")
+    # model.compile(optimizer=tf.keras.optimizers.Adam(0.001), loss="mean_squared_logarithmic_error")
     return model
+
+
+def predict_all(model, _list):
+    _prediction_list = []
+    for _data in _list:
+        _temp = _data.reshape(1, -1)
+        _prediction_list.append(model.predict(_temp)[0, 0])
+    return _prediction_list
 
 
 @click.command()
 @click.option("--input_csv", "-i",
-              default=r"D:\data_sets\linkedin-profiles-and-jobs-data\dl\_dump.csv",
+              default=r"/home/mluser/dataset/_dump.csv",
               help="Input CSV file")
 @click.option("--output_csv", "-o",
-              default=None,
+              default=r"/home/mluser/dataset/__x.csv",
               help="Output CSV file (If None, will gonna update input file)")
 def start(input_csv, output_csv):
     raw_data = pd.read_csv(input_csv)
@@ -140,14 +149,13 @@ def start(input_csv, output_csv):
     data = data.values
     data = data.reshape(data.shape[0], data.shape[1])
 
+    np.random.shuffle(data)
+
     model = _create_model_v4(data.shape[1])
     model.fit(data, data, batch_size=256, epochs=10)
 
-    test = data[0].reshape(1, -1)
-    pre = model.predict(test)
-    print(test.shape)
-    print(pre)
-    print(pre.shape)
+    raw_data["_keras"] = predict_all(model, data)
+    raw_data.to_csv(output_csv)
 
 
 if __name__ == '__main__':
